@@ -1,26 +1,147 @@
 @import "tailwindcss";
 
+/* ── Bushido Admin — Design Tokens ─────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --color-surface:                  #f8f9fa;
+  --color-surface-dim:              #d9dadb;
+  --color-surface-bright:           #f8f9fa;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low:    #f3f4f5;
+  --color-surface-container:        #edeeef;
+  --color-surface-container-high:   #e7e8e9;
+  --color-surface-container-highest:#e1e3e4;
+
+  /* On-surface */
+  --color-on-surface:         #191c1d;
+  --color-on-surface-variant: #564242;
+  --color-inverse-surface:    #2e3132;
+  --color-inverse-on-surface: #f0f1f2;
+
+  /* Primary — FMK Red */
+  --color-primary:              #5b0616;
+  --color-on-primary:           #ffffff;
+  --color-primary-container:    #7a1f2a;
+  --color-on-primary-container: #ff8b91;
+  --color-inverse-primary:      #ffb3b5;
+  --color-primary-fixed:        #ffdada;
+  --color-primary-fixed-dim:    #ffb3b5;
+  --color-surface-tint:         #a13c45;
+
+  /* Secondary — Slate */
+  --color-secondary:              #5b5f62;
+  --color-on-secondary:           #ffffff;
+  --color-secondary-container:    #dde0e3;
+  --color-on-secondary-container: #5f6366;
+
+  /* Outline */
+  --color-outline:         #897172;
+  --color-outline-variant: #dcc0c0;
+
+  /* Semantic */
+  --color-error:            #ba1a1a;
+  --color-on-error:         #ffffff;
+  --color-error-container:  #ffdad6;
+  --color-success:          #2d6a4f;
+
+  /* Background */
+  --color-background:    #f8f9fa;
+  --color-on-background: #191c1d;
+
+  /* Typography */
+  --font-headline: 'Montserrat', sans-serif;
+  --font-body:     'Inter', sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ── Tailwind v4 theme overrides ────────────────────────── */
+@theme {
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-on-surface);
+  --font-sans: var(--font-body);
+  --font-headline: var(--font-headline);
+
+  /* FMK brand colors — use as text-fmk-*, bg-fmk-*, etc. */
+  --color-fmk-primary:     #5b0616;
+  --color-fmk-red:         #7a1f2a;
+  --color-fmk-red-light:   #f8e9eb;
+  --color-fmk-slate:       #54585b;
+  --color-fmk-slate-light: #f3f4f5;
+  --color-fmk-green:       #2d6a4f;
+  --color-fmk-green-light: #eaf5ef;
+  --color-fmk-error:       #ba1a1a;
+  --color-fmk-error-light: #fff1f2;
+  --color-fmk-surface:     #f8f9fa;
+  --color-fmk-white:       #ffffff;
+  --color-fmk-dark:        #191c1d;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ───────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography helpers ─────────────────────────────────── */
+.font-headline {
+  font-family: var(--font-headline);
+}
+
+/* ── Material Symbols ───────────────────────────────────── */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  line-height: 1;
+  user-select: none;
+}
+
+/* ── Form elements ──────────────────────────────────────── */
+button, select, input, textarea {
+  font: inherit;
+}
+
+/* ── Focus ring — FMK red ───────────────────────────────── */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid rgba(122, 31, 42, 0.5);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #dcc0c0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #897172; }
+
+/* ── Utility: step progress bar fill animation ──────────── */
+@keyframes progress-fill {
+  from { width: 0%; }
+}
+
+/* ── Status pill base ───────────────────────────────────── */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.625rem;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid;
+  white-space: nowrap;
 }
