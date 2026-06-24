@@ -197,7 +197,7 @@ export async function getConvocatoriasDisponibles() {
       id, nombre, fecha_examen, sede, fecha_limite_inscripcion, cuota, vias_habilitadas, estado,
       convocatorias_grados ( grado )
     `)
-    .eq("estado", "abierta")
+    .in("estado", ["abierta", "en_curso"])
     .order("fecha_examen", { ascending: true });
 
   // Mostrar convocatorias que incluyan el grado objetivo del aspirante
@@ -239,9 +239,9 @@ export async function guardarBorradorSolicitud(formData: {
     .eq("id", formData.convocatoriaId)
     .single();
 
-  if (!conv || conv.estado !== "abierta") {
-    return { error: "La convocatoria seleccionada no está disponible." };
-  }
+  if (!conv || !["abierta", "en_curso"].includes(conv.estado)) {
+  return { error: "La convocatoria seleccionada no está disponible." };
+}
 
   const gradoSolicitado = conv.convocatorias_grados?.[0]?.grado ?? practicante.grado_actual;
 
