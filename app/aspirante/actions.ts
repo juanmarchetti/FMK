@@ -169,8 +169,28 @@ export async function calcularElegibilidad() {
 export async function getConvocatoriasDisponibles() {
   const { supabase, practicante } = await requireAspirante();
 
-  // Get grado_actual → look for convocatorias that include the next grade
-  // For simplicity, fetch all open convocatorias and filter by grade
+  // Mapa: grado actual → grado objetivo (al que puede aspirar)
+  const SIGUIENTE_GRADO: Record<string, string> = {
+    "Cinturón Blanco":   "Cinturón Amarillo",
+    "Cinturón Amarillo": "Cinturón Naranja",
+    "Cinturón Naranja":  "Cinturón Verde",
+    "Cinturón Verde":    "Cinturón Azul",
+    "Cinturón Azul":     "Cinturón Marrón",
+    "Cinturón Marrón":   "Cinturón Negro",
+    "Cinturón Negro":    "1º Dan",
+    "1º Dan":            "2º Dan",
+    "2º Dan":            "3º Dan",
+    "3º Dan":            "4º Dan",
+    "4º Dan":            "5º Dan",
+    "5º Dan":            "6º Dan",
+    "6º Dan":            "7º Dan",
+    "7º Dan":            "8º Dan",
+    "8º Dan":            "9º Dan",
+    "9º Dan":            "10º Dan",
+  };
+
+  const gradoObjetivo = SIGUIENTE_GRADO[practicante.grado_actual] ?? null;
+
   const { data: convocatorias } = await supabase
     .from("convocatorias")
     .select(`
@@ -180,9 +200,10 @@ export async function getConvocatoriasDisponibles() {
     .eq("estado", "abierta")
     .order("fecha_examen", { ascending: true });
 
-  // Filter: only show convocatorias that include the aspirante's next grade (grado_actual maps to what they can go for)
+  // Mostrar convocatorias que incluyan el grado objetivo del aspirante
   const filtered = (convocatorias ?? []).filter((conv: any) =>
-    conv.convocatorias_grados?.some((cg: any) => cg.grado === practicante.grado_actual)
+    gradoObjetivo &&
+    conv.convocatorias_grados?.some((cg: any) => cg.grado === gradoObjetivo)
   );
 
   return { convocatorias: filtered, gradoActual: practicante.grado_actual };
