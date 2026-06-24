@@ -63,7 +63,7 @@ export const PRACTICANTES: Practicante[] = [
     estiloNombre: "Goju Ryu",
     gradoActual: Grado.Dan1,
     fechaGradoActual: new Date("2024-03-15"),
-    rol: Rol.Estudiante,
+    rol: Rol.Aspirante,
     estado: "estudiante",
   },
 ];
