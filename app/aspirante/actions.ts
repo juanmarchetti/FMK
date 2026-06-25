@@ -216,7 +216,7 @@ export async function guardarBorradorSolicitud(formData: {
   convocatoriaId: string;
   viaElegida?: string;
   situacionEspecial?: string;
-  solicitudId?: string; // if resuming
+  solicitudId?: string;
 }) {
   const { supabase, practicante } = await requireAspirante();
 
@@ -228,8 +228,12 @@ export async function guardarBorradorSolicitud(formData: {
     .in("estado", ["enviada", "en_revision", "validada", "programada"])
     .limit(1);
 
+  // Si existe una solicitud activa Y no es la misma que estamos editando, bloquear
   if (existente && existente.length > 0) {
-    return { error: "Ya tienes una solicitud activa en curso. No puedes inscribirte en otra convocatoria." };
+    const esMismaSolicitud = formData.solicitudId && existente[0].id === formData.solicitudId;
+    if (!esMismaSolicitud) {
+      return { error: "Ya tienes una solicitud activa en curso. No puedes inscribirte en otra convocatoria." };
+    }
   }
 
   // Get grado_solicitado from convocatoria
@@ -240,13 +244,13 @@ export async function guardarBorradorSolicitud(formData: {
     .single();
 
   if (!conv || !["abierta", "en_curso"].includes(conv.estado)) {
-  return { error: "La convocatoria seleccionada no está disponible." };
-}
+    return { error: "La convocatoria seleccionada no está disponible." };
+  }
 
   const gradoSolicitado = conv.convocatorias_grados?.[0]?.grado ?? practicante.grado_actual;
 
   if (formData.solicitudId) {
-    // Resume / update draft
+    // Resume / update draft — acepta borrador Y estados intermedios
     const { error } = await supabase
       .from("solicitudes")
       .update({
@@ -258,7 +262,7 @@ export async function guardarBorradorSolicitud(formData: {
       })
       .eq("id", formData.solicitudId)
       .eq("practicante_id", practicante.id)
-      .eq("estado", "borrador");
+      .in("estado", ["borrador", "documentacion_incompleta"]);
 
     if (error) return { error: "Error al actualizar el borrador." };
     revalidatePath("/aspirante/solicitud");
@@ -266,6 +270,28 @@ export async function guardarBorradorSolicitud(formData: {
     return { success: true, solicitudId: formData.solicitudId };
   }
 
+  // Create new draft
+  const { data: nueva, error: createErr } = await supabase
+    .from("solicitudes")
+    .insert({
+      practicante_id: practicante.id,
+      convocatoria_id: formData.convocatoriaId,
+      grado_solicitado: gradoSolicitado,
+      via_elegida: formData.viaElegida ?? null,
+      situacion_especial: formData.situacionEspecial ?? null,
+      estado: "borrador",
+      estado_pago: "pendiente",
+      importe_final: (conv as any).cuota ?? 0,
+    })
+    .select("id")
+    .single();
+
+  if (createErr || !nueva) return { error: "Error al crear el borrador." };
+
+  revalidatePath("/aspirante/solicitud");
+  revalidatePath("/aspirante");
+  return { success: true, solicitudId: nueva.id };
+}
   // Create new draft
   const { data: nueva, error: createErr } = await supabase
     .from("solicitudes")
