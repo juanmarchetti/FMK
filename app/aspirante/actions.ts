@@ -333,9 +333,9 @@ export async function enviarSolicitud(solicitudId: string) {
     .eq("practicante_id", practicante.id)
     .single();
 
-  if (!sol || sol.estado !== "borrador") {
-    return { error: "Esta solicitud no puede enviarse en su estado actual." };
-  }
+  if (!sol || !["borrador", "documentacion_incompleta"].includes(sol.estado)) {
+  return { error: "Esta solicitud no puede enviarse en su estado actual." };
+}
 
   if (!sol.via_elegida) {
     return { error: "Debes seleccionar una vía específica antes de enviar." };
