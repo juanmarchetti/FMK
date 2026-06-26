@@ -2,7 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/app/admin/auditoria/actions";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+
+const GRADOS_ORDER = [
+  "Cinturón Blanco", "Cinturón Amarillo", "Cinturón Naranja", "Cinturón Verde",
+  "Cinturón Azul", "Cinturón Marrón", "Cinturón Negro",
+  "1º Dan", "2º Dan", "3º Dan", "4º Dan", "5º Dan",
+  "6º Dan", "7º Dan", "8º Dan", "9º Dan", "10º Dan",
+];
+
+export async function getGradosDisponibles(): Promise<string[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("reglas_normativas")
+    .select("grado");
+
+  if (error || !data) return GRADOS_ORDER.slice(1); // fallback sin Cinturón Blanco
+  const gradosBD = data.map((r: any) => r.grado);
+  return GRADOS_ORDER.filter((g) => gradosBD.includes(g) && g !== "Cinturón Blanco");
+}
 
 export async function createConvocatoria(data: {
   grados: string[];
