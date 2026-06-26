@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -25,50 +25,44 @@ function SectionTitle({ title, eyebrow }: { title: string; eyebrow?: string }) {
 }
 
 const ESTADO_MAP: Record<string, { label: string; className: string }> = {
-  enviada: { label: "Enviada", className: "border-[#7A1F2A]/30 bg-[#F8E9EB] text-[#7A1F2A]" },
-  en_revision: { label: "En revisión", className: "border-[#7A1F2A]/30 bg-[#F8E9EB] text-[#7A1F2A]" },
-  documentacion_incompleta: { label: "Incompleta", className: "border-[#BA1A1A]/30 bg-[#FFF1F2] text-[#BA1A1A]" },
-  validada: { label: "Validada", className: "border-[#2D6A4F]/30 bg-[#EAF5EF] text-[#2D6A4F]" },
-  programada: { label: "Programada", className: "border-[#2D6A4F]/30 bg-[#EAF5EF] text-[#2D6A4F]" },
-  rechazada: { label: "Rechazada", className: "border-[#BA1A1A]/30 bg-[#FFF1F2] text-[#BA1A1A]" },
-  borrador: { label: "Borrador", className: "border-[#54585B]/30 bg-[#EEF0F1] text-[#54585B]" },
-  finalizada: { label: "Finalizada", className: "border-[#54585B]/30 bg-[#EEF0F1] text-[#54585B]" },
+  enviada:                  { label: "Enviada",     className: "border-[#7A1F2A]/30 bg-[#F8E9EB] text-[#7A1F2A]" },
+  en_revision:              { label: "En revisión", className: "border-[#7A1F2A]/30 bg-[#F8E9EB] text-[#7A1F2A]" },
+  documentacion_incompleta: { label: "Incompleta",  className: "border-[#BA1A1A]/30 bg-[#FFF1F2] text-[#BA1A1A]" },
+  validada:                 { label: "Validada",    className: "border-[#2D6A4F]/30 bg-[#EAF5EF] text-[#2D6A4F]" },
+  programada:               { label: "Programada",  className: "border-[#2D6A4F]/30 bg-[#EAF5EF] text-[#2D6A4F]" },
+  rechazada:                { label: "Rechazada",   className: "border-[#BA1A1A]/30 bg-[#FFF1F2] text-[#BA1A1A]" },
+  borrador:                 { label: "Borrador",    className: "border-[#54585B]/30 bg-[#EEF0F1] text-[#54585B]" },
+  finalizada:               { label: "Finalizada",  className: "border-[#54585B]/30 bg-[#EEF0F1] text-[#54585B]" },
 };
 
 export default async function DirectorDashboard() {
+  // Cliente con sesión para verificar usuario actual
   const supabase = await createClient();
+  // Admin client para leer datos globales sin restricción de RLS
+  const admin = createAdminClient();
 
-  // --- Fetch metrics ---
-  const { count: solicitudesPendientes } = await supabase
-    .from("solicitudes")
-    .select("*", { count: "exact", head: true })
-    .in("estado", ["enviada", "en_revision"]);
-
-  const { count: convocatoriasActivas } = await supabase
-    .from("convocatorias")
-    .select("*", { count: "exact", head: true })
-    .eq("estado", "abierta");
-
-  const { count: expedientesIncompletos } = await supabase
-    .from("solicitudes")
-    .select("*", { count: "exact", head: true })
-    .eq("estado", "documentacion_incompleta");
-
-  const { count: totalAspirantes } = await supabase
-    .from("perfiles_usuario")
-    .select("*", { count: "exact", head: true })
-    .eq("rol", "aspirante")
-    .eq("estado", "activo");
+  // --- Métricas (con admin client para bypasear RLS) ---
+  const [
+    { count: solicitudesPendientes },
+    { count: convocatoriasActivas },
+    { count: expedientesIncompletos },
+    { count: totalAspirantes },
+  ] = await Promise.all([
+    admin.from("solicitudes").select("*", { count: "exact", head: true }).in("estado", ["enviada", "en_revision"]),
+    admin.from("convocatorias").select("*", { count: "exact", head: true }).eq("estado", "abierta"),
+    admin.from("solicitudes").select("*", { count: "exact", head: true }).eq("estado", "documentacion_incompleta"),
+    admin.from("practicantes").select("*", { count: "exact", head: true }),
+  ]);
 
   const metrics = [
-    { label: "Solicitudes pendientes", value: String(solicitudesPendientes ?? 0), detail: "Enviadas o en revisión", tone: "text-[#7A1F2A]" },
-    { label: "Convocatorias activas", value: String(convocatoriasActivas ?? 0), detail: "Abiertas para inscripción", tone: "text-[#191C1D]" },
-    { label: "Expedientes incompletos", value: String(expedientesIncompletos ?? 0), detail: "Falta documentación", tone: "text-[#BA1A1A]" },
-    { label: "Total aspirantes", value: String(totalAspirantes ?? 0), detail: "Cuentas activas en el sistema", tone: "text-[#2D6A4F]" },
+    { label: "Solicitudes pendientes",  value: String(solicitudesPendientes ?? 0), detail: "Enviadas o en revisión",       tone: "text-[#7A1F2A]"  },
+    { label: "Convocatorias activas",   value: String(convocatoriasActivas ?? 0),  detail: "Abiertas para inscripción",    tone: "text-[#191C1D]"  },
+    { label: "Expedientes incompletos", value: String(expedientesIncompletos ?? 0),detail: "Falta documentación",          tone: "text-[#BA1A1A]"  },
+    { label: "Total aspirantes",        value: String(totalAspirantes ?? 0),       detail: "Practicantes registrados",     tone: "text-[#2D6A4F]"  },
   ];
 
-  // --- Fetch recent solicitudes ---
-  const { data: solicitudesRaw } = await supabase
+  // --- Solicitudes recientes (admin client) ---
+  const { data: solicitudesRaw } = await admin
     .from("solicitudes")
     .select(`
       id,
@@ -88,27 +82,26 @@ export default async function DirectorDashboard() {
 
   const solicitudes = (solicitudesRaw ?? []).map((s: any) => {
     const pract = s.practicantes;
-    const est = ESTADO_MAP[s.estado] ?? ESTADO_MAP.borrador;
+    const est   = ESTADO_MAP[s.estado] ?? ESTADO_MAP.borrador;
     const createdAt = new Date(s.created_at);
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (24 * 60 * 60 * 1000));
     const due = diffDays === 0 ? "Hoy" : diffDays === 1 ? "Hace 1 día" : `Hace ${diffDays} días`;
-
     return {
-      id: s.id,
-      name: pract ? `${pract.nombre} ${pract.apellidos}` : "—",
-      current: pract?.grado_actual ?? "—",
-      target: s.grado_solicitado,
-      club: pract?.clubes?.nombre ?? "—",
-      status: est.label,
+      id:          s.id,
+      name:        pract ? `${pract.nombre} ${pract.apellidos}` : "—",
+      current:     pract?.grado_actual ?? "—",
+      target:      s.grado_solicitado,
+      club:        pract?.clubes?.nombre ?? "—",
+      status:      est.label,
       statusClass: est.className,
       due,
     };
   });
 
-  // --- Fetch upcoming convocatorias ---
+  // --- Próximas convocatorias ---
   const today = new Date().toISOString().split("T")[0];
-  const { data: convocatoriasRaw } = await supabase
+  const { data: convocatoriasRaw } = await admin
     .from("convocatorias")
     .select("id, nombre, fecha_examen, sede")
     .gte("fecha_examen", today)
@@ -116,8 +109,8 @@ export default async function DirectorDashboard() {
     .limit(5);
 
   const convocatorias = (convocatoriasRaw ?? []).map((c: any) => {
-    const fecha = new Date(c.fecha_examen);
-    const day = String(fecha.getDate()).padStart(2, "0");
+    const fecha = new Date(c.fecha_examen + "T00:00:00");
+    const day   = String(fecha.getDate()).padStart(2, "0");
     const month = fecha.toLocaleDateString("es-ES", { month: "short" }).toUpperCase().replace(".", "");
     return { id: c.id, day, month, title: c.nombre, place: c.sede };
   });

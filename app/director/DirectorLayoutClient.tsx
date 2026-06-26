@@ -7,15 +7,22 @@ import { logout } from "@/app/login/actions";
 import { NotificacionesMenu } from "@/components/NotificacionesMenu";
 
 const navItems = [
-  { href: "/director",              label: "Panel",          icon: "dashboard"  },
-  { href: "/director/solicitudes",  label: "Solicitudes",    icon: "assignment" },
-  { href: "/director/convocatorias",label: "Convocatorias",  icon: "event"      },
-  { href: "/director/resultados",   label: "Resultados",     icon: "fact_check" },
-  { href: "/director/licencias",    label: "Licencias",      icon: "badge"      },
-  { href: "/director/catalogo",     label: "Catálogo",       icon: "menu_book"  },
+  { href: "/director",               label: "Panel",         icon: "dashboard"  },
+  { href: "/director/solicitudes",   label: "Solicitudes",   icon: "assignment" },
+  { href: "/director/convocatorias", label: "Convocatorias", icon: "event"      },
+  { href: "/director/resultados",    label: "Resultados",    icon: "fact_check" },
+  { href: "/director/licencias",     label: "Licencias",     icon: "badge"      },
+  { href: "/director/catalogo",      label: "Catálogo",      icon: "menu_book"  },
 ];
 
-function Sidebar({ pathname }: { pathname: string }) {
+interface DirectorLayoutClientProps {
+  children: React.ReactNode;
+  nombre:   string;
+  email:    string;
+  iniciales: string;
+}
+
+function Sidebar({ pathname, nombre, email, iniciales }: { pathname: string; nombre: string; email: string; iniciales: string }) {
   const isActive = (href: string) =>
     href === "/director" ? pathname === "/director" : pathname.startsWith(href);
 
@@ -59,11 +66,11 @@ function Sidebar({ pathname }: { pathname: string }) {
 
       <div className="mt-4 flex items-center gap-3 rounded-lg bg-white border border-[#54585B]/20 p-3">
         <div className="h-8 w-8 rounded-full bg-[#7A1F2A] flex items-center justify-center text-white text-xs font-bold shrink-0">
-          DI
+          {iniciales}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-[#191C1D] truncate">Director FMK</p>
-          <p className="text-xs text-[#54585B] truncate">director@fmk.es</p>
+          <p className="text-sm font-semibold text-[#191C1D] truncate">{nombre}</p>
+          <p className="text-xs text-[#54585B] truncate">{email}</p>
         </div>
         <form action={logout} className="ml-auto">
           <button type="submit" aria-label="Cerrar sesión">
@@ -130,7 +137,7 @@ function MobileDrawer({ open, onClose, pathname }: { open: boolean; onClose: () 
   );
 }
 
-export function DirectorLayoutClient({ children }: { children: React.ReactNode }) {
+export function DirectorLayoutClient({ children, nombre, email, iniciales }: DirectorLayoutClientProps) {
   const pathname    = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const currentNav  = navItems.find((n) =>
@@ -139,7 +146,7 @@ export function DirectorLayoutClient({ children }: { children: React.ReactNode }
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
-      <Sidebar pathname={pathname} />
+      <Sidebar pathname={pathname} nombre={nombre} email={email} iniciales={iniciales} />
       <MobileDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} pathname={pathname} />
       <div className="flex-1 flex flex-col min-w-0">
         <MobileHeader title={currentNav?.label ?? "Panel"} onMenu={() => setMobileOpen(true)} />
