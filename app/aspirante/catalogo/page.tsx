@@ -1,228 +1,228 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createConvocatoria, getGradosDisponibles } from "../actions";
+import { useState, useTransition, useEffect } from "react";
+import { getCatalogo, getTemario } from "@/app/aspirante/actions";
 
-export default function NuevaConvocatoriaPage() {
-  const [form, setForm] = useState({
-    grados: [] as string[],
-    fechaExamen: "",
-    sede: "",
-    fechaLimite: "",
-    cuota: "",
-    vias: { kumite: true, campeonatos: true, tecnica: true },
-    observaciones: "",
-  });
-  const [error, setError] = useState("");
+type Tab = "estilos" | "katas" | "temario";
 
-  const [gradosDisponibles, setGradosDisponibles] = useState<string[]>([]);
+// Grados fijos de la normativa FMK (no cambian)
+const GRADOS_TEMARIO = [
+  "Cinturón Amarillo", "Cinturón Naranja", "Cinturón Verde",
+  "Cinturón Azul", "Cinturón Marrón", "Cinturón Negro",
+  "1º Dan", "2º Dan", "3º Dan", "4º Dan", "5º Dan",
+  "6º Dan", "7º Dan", "8º Dan", "9º Dan", "10º Dan",
+];
 
-  const GRADOS_FALLBACK = [
-    "Cinturón Amarillo", "Cinturón Naranja", "Cinturón Verde",
-    "Cinturón Azul", "Cinturón Marrón", "Cinturón Negro",
-    "1º Dan", "2º Dan", "3º Dan", "4º Dan", "5º Dan",
-    "6º Dan", "7º Dan", "8º Dan", "9º Dan", "10º Dan",
-  ];
+export default function CatalogoPage() {
+  const [tab, setTab] = useState<Tab>("estilos");
+  const [isPending, startTransition] = useTransition();
+
+  const [estilos, setEstilos] = useState<any[]>([]);
+  const [estiloSeleccionado, setEstiloSeleccionado] = useState<string>("");
+  const [katas, setKatas] = useState<any[]>([]);
+
+  const [gradoTemario, setGradoTemario] = useState<string>("1º Dan");
+  const [preguntas, setPreguntas] = useState<any[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
-    getGradosDisponibles()
-      .then((g) => setGradosDisponibles(g.length > 0 ? g : GRADOS_FALLBACK))
-      .catch(() => setGradosDisponibles(GRADOS_FALLBACK));
+    startTransition(async () => {
+      const data = await getCatalogo();
+      setEstilos(data.estilos);
+    });
   }, []);
-  function toggleGrado(g: string) {
-    setForm((prev) => ({
-      ...prev,
-      grados: prev.grados.includes(g)
-        ? prev.grados.filter((x) => x !== g)
-        : [...prev.grados, g],
-    }));
-  }
 
-  const router = useRouter();
+  useEffect(() => {
+    if (!estiloSeleccionado) return;
+    startTransition(async () => {
+      const data = await getCatalogo(estiloSeleccionado);
+      setKatas(data.katas);
+    });
+  }, [estiloSeleccionado]);
 
-  async function handleSubmit(asBorrador: boolean) {
-    setError("");
-    if (!form.fechaExamen || !form.sede || !form.fechaLimite || form.grados.length === 0) {
-      setError("Completa los campos obligatorios (incluyendo al menos un grado).");
-      return;
-    }
-    // Validate 35-day rule
-    const examen = new Date(form.fechaExamen);
-    const limite = new Date(form.fechaLimite);
-    const diffDays = Math.floor((examen.getTime() - limite.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 35) {
-      setError(`La fecha límite de inscripción debe ser al menos 35 días antes del examen. Actualmente: ${diffDays} días.`);
-      return;
-    }
-    
-    try {
-      await createConvocatoria({
-        ...form,
-        cuota: Number(form.cuota) || 0,
-        estado: asBorrador ? "borrador" : "abierta",
-      });
-      router.push("/director/convocatorias");
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }
+  useEffect(() => {
+    if (tab !== "temario") return;
+    startTransition(async () => {
+      const data = await getTemario(gradoTemario);
+      setPreguntas(data.preguntas);
+    });
+  }, [tab, gradoTemario]);
+
+  const basicKatas = katas.filter((k: any) => k.nivel === "básico");
+  const superiorKatas = katas.filter((k: any) => k.nivel === "superior");
 
   return (
-    <div className="mx-auto max-w-3xl">
-      {/* Breadcrumb */}
-      <nav className="mb-4 flex items-center gap-2 text-sm text-[#54585B]">
-        <Link href="/director/convocatorias" className="hover:text-[#7A1F2A] hover:underline">Convocatorias</Link>
-        <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-        <span className="font-semibold text-[#191C1D]">Nueva convocatoria</span>
-      </nav>
-
-      <h1 className="text-2xl font-bold text-[#191C1D] mb-6" style={{ fontFamily: "Montserrat, sans-serif" }}>
-        Crear nueva convocatoria de examen
-      </h1>
-
-      <div className="space-y-6">
-        {/* Grados */}
-        <section className="rounded-lg border border-[#54585B]/20 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-[#54585B] mb-3">Grados convocados *</p>
-          <div className="flex flex-wrap gap-2">
-            {gradosDisponibles.length === 0 ? (
-                <p className="text-sm text-[#54585B]">Cargando grados…</p>
-              ) : null}
-            {gradosDisponibles.map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => toggleGrado(g)}
-                className={`h-9 rounded border px-3 text-sm font-semibold transition ${
-                  form.grados.includes(g)
-                    ? "border-[#7A1F2A] bg-[#7A1F2A] text-white"
-                    : "border-[#54585B]/30 bg-white text-[#54585B] hover:border-[#7A1F2A] hover:text-[#7A1F2A]"
-                }`}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Datos principales */}
-        <section className="rounded-lg border border-[#54585B]/20 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-[#54585B] mb-4">Datos de la convocatoria</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[#54585B] mb-1.5">
-                Fecha del examen *
-              </label>
-              <input
-                type="date"
-                value={form.fechaExamen}
-                onChange={(e) => setForm({ ...form, fechaExamen: e.target.value })}
-                className="w-full h-11 rounded border border-[#54585B]/30 bg-white px-3 text-sm text-[#191C1D] focus:border-[#7A1F2A] focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[#54585B] mb-1.5">
-                Fecha límite de inscripción *
-              </label>
-              <input
-                type="date"
-                value={form.fechaLimite}
-                onChange={(e) => setForm({ ...form, fechaLimite: e.target.value })}
-                className="w-full h-11 rounded border border-[#54585B]/30 bg-white px-3 text-sm text-[#191C1D] focus:border-[#7A1F2A] focus:outline-none"
-              />
-              <p className="mt-1 text-xs text-[#54585B]">Mínimo 35 días antes del examen</p>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wide text-[#54585B] mb-1.5">
-                Sede del examen *
-              </label>
-              <input
-                type="text"
-                value={form.sede}
-                onChange={(e) => setForm({ ...form, sede: e.target.value })}
-                placeholder="Ej: Polideportivo Magariños, Madrid"
-                className="w-full h-11 rounded border border-[#54585B]/30 bg-white px-3 text-sm text-[#191C1D] placeholder:text-[#54585B]/50 focus:border-[#7A1F2A] focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[#54585B] mb-1.5">
-                Cuota de examen (€)
-              </label>
-              <input
-                type="number"
-                value={form.cuota}
-                onChange={(e) => setForm({ ...form, cuota: e.target.value })}
-                placeholder="85"
-                className="w-full h-11 rounded border border-[#54585B]/30 bg-white px-3 text-sm text-[#191C1D] placeholder:text-[#54585B]/50 focus:border-[#7A1F2A] focus:outline-none"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Vías habilitadas */}
-        <section className="rounded-lg border border-[#54585B]/20 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-[#54585B] mb-3">Vías del Bloque Específico habilitadas</p>
-          <div className="space-y-2">
-            {[
-              { key: "kumite" as const, label: "Kumite", desc: "Combate reglamentado (Shiai/Jyu)" },
-              { key: "campeonatos" as const, label: "Campeonatos", desc: "Exención por puntos de competición (mín. 10)" },
-              { key: "tecnica" as const, label: "Técnica", desc: "Bunkai / Oyo Waza / Jyu Embu (no disponible para Cinturón Negro)" },
-            ].map((v) => (
-              <label key={v.key} className="flex items-start gap-3 p-3 rounded border border-[#54585B]/15 hover:bg-[#F8F9FA] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.vias[v.key]}
-                  onChange={() => setForm((prev) => ({ ...prev, vias: { ...prev.vias, [v.key]: !prev.vias[v.key] } }))}
-                  className="mt-0.5 h-4 w-4 rounded border-[#54585B]/30 accent-[#7A1F2A]"
-                />
-                <div>
-                  <p className="text-sm font-bold text-[#191C1D]">{v.label}</p>
-                  <p className="text-xs text-[#54585B]">{v.desc}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </section>
-
-        {/* Observaciones */}
-        <section className="rounded-lg border border-[#54585B]/20 bg-white p-5">
-          <label className="block text-xs font-bold uppercase tracking-wide text-[#54585B] mb-1.5">
-            Observaciones logísticas
-          </label>
-          <textarea
-            value={form.observaciones}
-            onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
-            rows={3}
-            placeholder="Examen a puerta cerrada, uniforme oficial del Tribunal..."
-            className="w-full rounded border border-[#54585B]/30 bg-[#F8F9FA] px-3 py-2 text-sm text-[#191C1D] placeholder:text-[#54585B]/50 focus:border-[#7A1F2A] focus:outline-none resize-none"
-          />
-        </section>
-
-        {/* Error */}
-        {error && (
-          <div className="rounded border border-[#BA1A1A]/30 bg-[#FFF1F2] px-4 py-3">
-            <p className="text-sm text-[#BA1A1A] flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">error</span>
-              {error}
-            </p>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Link href="/director/convocatorias" className="h-11 rounded border border-[#54585B]/35 bg-white px-4 text-sm font-bold text-[#54585B] hover:text-[#7A1F2A] transition flex items-center justify-center">
-            Cancelar
-          </Link>
-          <button type="button" onClick={() => handleSubmit(true)} className="h-11 rounded border border-[#7A1F2A] bg-white px-4 text-sm font-bold text-[#7A1F2A] hover:bg-[#F8E9EB] transition">
-            Guardar borrador
-          </button>
-          <button type="button" onClick={() => handleSubmit(false)} className="h-11 rounded bg-[#7A1F2A] px-4 text-sm font-bold text-white hover:bg-[#5B0616] transition">
-            Publicar convocatoria
-          </button>
-        </div>
+    <div className="mx-auto max-w-4xl">
+      <div className="border-b border-[#54585B]/20 pb-6 mb-6">
+        <p className="text-xs font-bold uppercase tracking-wide text-[#7A1F2A]">Recursos de Estudio</p>
+        <h1 className="mt-2 text-3xl font-bold text-[#191C1D]" style={{ fontFamily: "Montserrat, sans-serif" }}>
+          Catálogo FMK
+        </h1>
+        <p className="mt-1 text-sm text-[#54585B]">Estilos reconocidos, katas recomendados y temario por grado.</p>
       </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-[#54585B]/20">
+        {(["estilos", "katas", "temario"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            id={`tab-${t}`}
+            onClick={() => { setTab(t); }}
+            className={`px-5 py-2.5 text-sm font-bold capitalize border-b-2 transition -mb-px ${
+              tab === t ? "border-[#7A1F2A] text-[#7A1F2A]" : "border-transparent text-[#54585B] hover:text-[#191C1D]"
+            }`}
+          >
+            {t === "estilos" ? "Estilos" : t === "katas" ? "Katas" : "Temario"}
+          </button>
+        ))}
+      </div>
+
+      {/* Estilos */}
+      {tab === "estilos" && (
+        <div className="space-y-4">
+          {isPending && estilos.length === 0 ? (
+            <p className="text-sm text-[#54585B] flex items-center gap-2">
+              <span className="material-symbols-outlined animate-spin text-[#7A1F2A]">progress_activity</span>
+              Cargando estilos…
+            </p>
+          ) : estilos.length === 0 ? (
+            <div className="rounded-lg border border-[#54585B]/20 bg-white p-8 text-center">
+              <span className="material-symbols-outlined text-4xl text-[#54585B]/40 mb-3">menu_book</span>
+              <p className="text-sm text-[#54585B]">No hay estilos registrados en el catálogo todavía.</p>
+            </div>
+          ) : (
+            estilos.map((est: any) => (
+              <div key={est.id} className="rounded-lg border border-[#54585B]/20 bg-white p-5">
+                <h3 className="font-bold text-[#191C1D] text-lg" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                  {est.nombre}
+                </h3>
+                {est.fundador && (
+                  <p className="text-sm text-[#54585B] mt-1">
+                    <span className="font-semibold">Fundador:</span> {est.fundador}
+                  </p>
+                )}
+                {est.caracteristicas && (
+                  <p className="text-sm text-[#191C1D] mt-2 leading-relaxed">{est.caracteristicas}</p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Katas */}
+      {tab === "katas" && (
+        <div className="space-y-6">
+          <div>
+            <label className="text-sm font-semibold text-[#191C1D] block mb-2">Seleccionar Estilo</label>
+            <select
+              id="select-estilo-kata"
+              value={estiloSeleccionado}
+              onChange={(e) => setEstiloSeleccionado(e.target.value)}
+              className="w-full sm:w-72 rounded border border-[#54585B]/20 px-3 py-2 text-sm text-[#191C1D] focus:outline-none focus:ring-2 focus:ring-[#7A1F2A]/30"
+            >
+              <option value="">-- Elige un estilo --</option>
+              {estilos.map((est: any) => (
+                <option key={est.id} value={est.id}>{est.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          {estiloSeleccionado && (
+            isPending ? (
+              <p className="text-sm text-[#54585B] flex items-center gap-2">
+                <span className="material-symbols-outlined animate-spin text-[#7A1F2A]">progress_activity</span>
+                Cargando katas…
+              </p>
+            ) : katas.length === 0 ? (
+              <p className="text-sm text-[#54585B]">No hay katas registrados para este estilo.</p>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="rounded-lg border border-[#54585B]/20 bg-white p-5">
+                  <h3 className="font-bold text-[#191C1D] text-sm uppercase tracking-wide mb-3">Katas Básicos</h3>
+                  {basicKatas.length === 0 ? <p className="text-sm text-[#54585B]">—</p> : (
+                    <ul className="space-y-2">
+                      {basicKatas.map((kata: any) => (
+                        <li key={kata.id} className="flex items-center gap-2 text-sm text-[#191C1D]">
+                          <span className="material-symbols-outlined text-[16px] text-[#2D6A4F]">sports_martial_arts</span>
+                          {kata.nombre}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded-lg border border-[#54585B]/20 bg-white p-5">
+                  <h3 className="font-bold text-[#191C1D] text-sm uppercase tracking-wide mb-3">Katas Superiores</h3>
+                  {superiorKatas.length === 0 ? <p className="text-sm text-[#54585B]">—</p> : (
+                    <ul className="space-y-2">
+                      {superiorKatas.map((kata: any) => (
+                        <li key={kata.id} className="flex items-center gap-2 text-sm text-[#191C1D]">
+                          <span className="material-symbols-outlined text-[16px] text-[#7A1F2A]">star</span>
+                          {kata.nombre}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
+
+      {/* Temario */}
+      {tab === "temario" && (
+        <div className="space-y-6">
+          <div>
+            <label className="text-sm font-semibold text-[#191C1D] block mb-2">Seleccionar Grado</label>
+            <select
+              id="select-grado-temario"
+              value={gradoTemario}
+              onChange={(e) => setGradoTemario(e.target.value)}
+              className="w-full sm:w-72 rounded border border-[#54585B]/20 px-3 py-2 text-sm text-[#191C1D] focus:outline-none focus:ring-2 focus:ring-[#7A1F2A]/30"
+            >
+              {GRADOS_TEMARIO.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </div>
+
+          {isPending ? (
+            <p className="text-sm text-[#54585B] flex items-center gap-2">
+              <span className="material-symbols-outlined animate-spin text-[#7A1F2A]">progress_activity</span>
+              Cargando temario…
+            </p>
+          ) : preguntas.length === 0 ? (
+            <div className="rounded-lg border border-[#54585B]/20 bg-white p-8 text-center">
+              <p className="text-sm text-[#54585B]">No hay preguntas registradas en el temario para este grado todavía.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {preguntas.map((p: any, i: number) => (
+                <div key={p.id} className="rounded-lg border border-[#54585B]/20 bg-white overflow-hidden">
+                  <button
+                    id={`pregunta-${i}`}
+                    onClick={() => setExpanded(expanded === p.id ? null : p.id)}
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-[#F8F9FA] transition"
+                  >
+                    <span className="text-sm font-semibold text-[#191C1D]">
+                      {i + 1}. {p.pregunta}
+                    </span>
+                    <span className="material-symbols-outlined text-[20px] text-[#54585B] shrink-0">
+                      {expanded === p.id ? "expand_less" : "expand_more"}
+                    </span>
+                  </button>
+                  {expanded === p.id && (
+                    <div className="px-5 pb-4 border-t border-[#54585B]/10">
+                      <p className="text-sm text-[#191C1D] mt-3 leading-relaxed">{p.respuesta}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
