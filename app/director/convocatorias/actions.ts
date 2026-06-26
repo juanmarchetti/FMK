@@ -1,8 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/app/admin/auditoria/actions";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export async function createConvocatoria(data: {
   grados: string[];
@@ -110,6 +110,22 @@ export async function changeEstadoConvocatoria(id: string, nuevoEstado: string) 
     throw new Error("Error al cambiar estado");
   }
 
+  if (nuevoEstado === "abierta") {
+    // Notify ALL practicantes
+    const adminClient = createAdminClient();
+    const { data: practicantes } = await adminClient.from("practicantes").select("user_id");
+    if (practicantes && practicantes.length > 0) {
+      const notifs = practicantes.map(p => ({
+        user_id: p.user_id,
+        titulo: "Nueva Convocatoria Abierta",
+        mensaje: "Se ha abierto una nueva convocatoria. Revisa en tu panel si cumples los requisitos para inscribirte.",
+        tipo: "convocatoria",
+        enlace: "/aspirante/catalogo"
+      }));
+      await adminClient.from("notificaciones").insert(notifs);
+    }
+  }
+
   await logAudit(
     userData.user.id,
     userData.user.email ?? "",
@@ -146,8 +162,27 @@ export async function updateSedeConvocatoria(id: string, nuevaSede: string, hasS
   );
 
   if (hasSolicitudes) {
-    // Si hay solicitudes inscritas, el Director FMK debe enviar notificación (DIR-04)
-    // En una fase posterior implementaremos la tabla de notificaciones.
+    // DIR-04: Notificar a los aspirantes inscritos
+    const adminClient = createAdminClient();
+    const { data: solicitudes } = await adminClient
+      .from("solicitudes")
+      .select("practicantes(user_id)")
+      .eq("convocatoria_id", id) as any;
+
+    if (solicitudes && solicitudes.length > 0) {
+      const notifs = solicitudes
+        .filter((s: any) => s.practicantes?.user_id)
+        .map((s: any) => ({
+          user_id: s.practicantes.user_id,
+          titulo: "Cambio de Sede de Convocatoria",
+          mensaje: `La sede de tu convocatoria ha cambiado a: ${nuevaSede}`,
+          tipo: "sistema",
+          enlace: "/aspirante/solicitud"
+        }));
+      if (notifs.length > 0) {
+        await adminClient.from("notificaciones").insert(notifs);
+      }
+    }
   }
 
   revalidatePath(`/director/convocatorias/${id}`);

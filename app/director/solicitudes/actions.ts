@@ -101,6 +101,24 @@ export async function validarDocumento(documentoId: string) {
       .from("solicitudes")
       .update({ estado: "validada" })
       .eq("id", doc.solicitud_id);
+
+    // Create Notification
+    const { data: solData } = await supabase
+      .from("solicitudes")
+      .select("practicantes(user_id)")
+      .eq("id", doc.solicitud_id)
+      .single() as any;
+
+    if (solData?.practicantes?.user_id) {
+      const adminClient = createAdminClient();
+      await adminClient.from("notificaciones").insert({
+        user_id: solData.practicantes.user_id,
+        titulo: "Solicitud Validada",
+        mensaje: "Tu solicitud ha sido validada correctamente.",
+        tipo: "solicitud",
+        enlace: "/aspirante/solicitud",
+      });
+    }
   }
 
   // Audit log
@@ -150,6 +168,24 @@ export async function rechazarDocumento(documentoId: string, motivo: string) {
     .from("solicitudes")
     .update({ estado: "documentacion_incompleta" })
     .eq("id", doc.solicitud_id);
+
+  // Create Notification
+  const { data: solData } = await supabase
+    .from("solicitudes")
+    .select("practicantes(user_id)")
+    .eq("id", doc.solicitud_id)
+    .single() as any;
+
+  if (solData?.practicantes?.user_id) {
+    const adminClient = createAdminClient();
+    await adminClient.from("notificaciones").insert({
+      user_id: solData.practicantes.user_id,
+      titulo: "Documento Rechazado",
+      mensaje: `Un documento de tu solicitud ha sido rechazado. Motivo: ${motivo.trim()}`,
+      tipo: "documento",
+      enlace: "/aspirante/solicitud",
+    });
+  }
 
   // Audit
   const adminClient = createAdminClient();

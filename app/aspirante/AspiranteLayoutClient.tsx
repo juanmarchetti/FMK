@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/login/actions";
 import { createClient } from "@/lib/supabase/client";
+import { NotificacionesMenu } from "@/components/NotificacionesMenu";
 
 const navItems = [
   { href: "/aspirante",           label: "Panel Principal", icon: "dashboard"    },
@@ -109,6 +110,10 @@ export function AspiranteLayoutClient({ children }: { children: React.ReactNode 
           ))}
         </nav>
 
+        <div className="flex justify-end mb-4">
+          <NotificacionesMenu />
+        </div>
+
         <UserCard />
       </aside>
 
@@ -165,13 +170,16 @@ export function AspiranteLayoutClient({ children }: { children: React.ReactNode 
               {currentNav?.label ?? "Panel Principal"}
             </p>
           </div>
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="h-10 w-10 flex items-center justify-center rounded border border-[#54585B]/30 text-[#54585B]"
-            aria-label="Menú"
-          >
-            <span className="material-symbols-outlined text-[20px]">menu</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <NotificacionesMenu />
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="h-10 w-10 flex items-center justify-center rounded border border-[#54585B]/30 text-[#54585B]"
+              aria-label="Menú"
+            >
+              <span className="material-symbols-outlined text-[20px]">menu</span>
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/login/actions";
+import { NotificacionesMenu } from "@/components/NotificacionesMenu";
 
 const navItems = [
   { href: "/director",              label: "Panel",          icon: "dashboard"  },
@@ -52,6 +53,10 @@ function Sidebar({ pathname }: { pathname: string }) {
         <p className="mt-1 text-xs leading-5 text-[#54585B]">Reglas parametrizadas en Supabase.</p>
       </div>
 
+      <div className="flex justify-end mt-4">
+        <NotificacionesMenu />
+      </div>
+
       <div className="mt-4 flex items-center gap-3 rounded-lg bg-white border border-[#54585B]/20 p-3">
         <div className="h-8 w-8 rounded-full bg-[#7A1F2A] flex items-center justify-center text-white text-xs font-bold shrink-0">
           DI
@@ -77,11 +82,14 @@ function MobileHeader({ title, onMenu }: { title: string; onMenu: () => void }) 
         <p className="text-xs font-bold uppercase tracking-wide text-[#7A1F2A]">FMK Grados</p>
         <p className="text-base font-bold text-[#191C1D]">{title}</p>
       </div>
-      <button type="button" onClick={onMenu}
-        className="h-10 w-10 flex items-center justify-center rounded border border-[#54585B]/30 text-[#54585B]"
-        aria-label="Menú">
-        <span className="material-symbols-outlined text-[20px]">menu</span>
-      </button>
+      <div className="flex items-center gap-2">
+        <NotificacionesMenu />
+        <button type="button" onClick={onMenu}
+          className="h-10 w-10 flex items-center justify-center rounded border border-[#54585B]/30 text-[#54585B]"
+          aria-label="Menú">
+          <span className="material-symbols-outlined text-[20px]">menu</span>
+        </button>
+      </div>
     </header>
   );
 }

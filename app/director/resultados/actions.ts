@@ -219,6 +219,28 @@ export async function publicarResultadosProvisionales(convocatoriaId: string) {
 
   if (error) throw new Error("Error al publicar resultados provisionales");
 
+  // Create notifications for all aspirantes in this convocatoria
+  const { data: solicitudes } = await supabase
+    .from("solicitudes")
+    .select("practicantes(user_id)")
+    .eq("convocatoria_id", convocatoriaId) as any;
+
+  if (solicitudes && solicitudes.length > 0) {
+    const adminClient = createAdminClient();
+    const notifications = solicitudes
+      .filter((s: any) => s.practicantes?.user_id)
+      .map((s: any) => ({
+        user_id: s.practicantes.user_id,
+        titulo: "Resultados Provisionales Publicados",
+        mensaje: "Se han publicado los resultados provisionales de tu convocatoria.",
+        tipo: "resultado",
+        enlace: "/aspirante/resultado",
+      }));
+    if (notifications.length > 0) {
+      await adminClient.from("notificaciones").insert(notifications);
+    }
+  }
+
   await logAuditLocal(userId, email, "publicar_resultados_provisionales", "convocatorias", convocatoriaId, {});
   revalidatePath(`/director/resultados`);
   return { success: true };
@@ -233,8 +255,8 @@ export async function generarActaOficial(convocatoriaId: string) {
   // Obtener todas las solicitudes de la convocatoria
   const { data: solicitudes } = await supabase
     .from("solicitudes")
-    .select("id, practicante_id, grado_solicitado")
-    .eq("convocatoria_id", convocatoriaId);
+    .select("id, practicante_id, grado_solicitado, practicantes(user_id)")
+    .eq("convocatoria_id", convocatoriaId) as any;
 
   if (!solicitudes || solicitudes.length === 0) {
     throw new Error("No hay solicitudes vinculadas a esta convocatoria.");
@@ -293,6 +315,22 @@ export async function generarActaOficial(convocatoriaId: string) {
     .from("convocatorias")
     .update({ estado: "finalizada" })
     .eq("id", convocatoriaId);
+
+  // Notify aspirantes
+  if (solicitudes && solicitudes.length > 0) {
+    const notifications = solicitudes
+      .filter((s: any) => s.practicantes?.user_id)
+      .map((s: any) => ({
+        user_id: s.practicantes.user_id,
+        titulo: "Acta Oficial Emitida",
+        mensaje: "El acta oficial de la convocatoria ha sido firmada y tu resultado es definitivo.",
+        tipo: "resultado",
+        enlace: "/aspirante/resultado",
+      }));
+    if (notifications.length > 0) {
+      await adminClient.from("notificaciones").insert(notifications);
+    }
+  }
 
   await logAuditLocal(userId, email, "generar_acta_oficial", "convocatorias", convocatoriaId, {
     total_solicitudes: solicitudes.length,

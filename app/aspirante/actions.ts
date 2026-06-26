@@ -424,6 +424,19 @@ export async function enviarSolicitud(solicitudId: string, viaElegidaParam?: str
 
   if (updateErr) return { error: `Error al enviar la solicitud: ${updateErr.message}` };
 
+  // RF-NOT-07: Notificar a los Directores FMK
+  const { data: directores } = await admin.from("perfiles_usuario").select("user_id").eq("rol", "director_fmk");
+  if (directores && directores.length > 0) {
+    const notifs = directores.map((d: any) => ({
+      user_id: d.user_id,
+      titulo: "Nueva Solicitud Recibida",
+      mensaje: "Se ha recibido una nueva solicitud de grado para revisión.",
+      tipo: "solicitud",
+      enlace: "/director/solicitudes"
+    }));
+    await admin.from("notificaciones").insert(notifs);
+  }
+
   revalidatePath("/aspirante");
   revalidatePath("/aspirante/solicitud");
   return { success: true };
