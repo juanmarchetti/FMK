@@ -390,7 +390,7 @@ export default function SolicitudInscripcionPage() {
 
                       <div className="flex items-center gap-2">
                         {/* Botón Ver — solo si ya hay archivo subido */}
-                        {docExist?.ruta_archivo && (
+                        {docExist?.bucket_path  && (
                           <button
                             type="button"
                             onClick={handleVerDoc}

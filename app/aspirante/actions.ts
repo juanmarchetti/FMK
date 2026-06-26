@@ -73,7 +73,7 @@ export async function getDashboardData() {
   if (solicitudActiva) {
     const { data: docs } = await supabase
       .from("documentos")
-      .select("id, tipo, estado_validacion, comentarios_revision, ruta_archivo, created_at")
+      .select("id, tipo, estado_validacion, comentarios_revision, bucket_path, created_at")
       .eq("solicitud_id", solicitudActiva.id);
     documentos = docs ?? [];
   }
@@ -97,11 +97,11 @@ export async function getDocumentoUrl(documentoId: string): Promise<{ url: strin
   // Obtener la ruta del archivo, verificando que pertenece al practicante
   const { data: doc, error } = await supabase
     .from("documentos")
-    .select("ruta_archivo, solicitud_id")
+    .select("bucket_path, solicitud_id")
     .eq("id", documentoId)
     .single();
 
-  if (error || !doc?.ruta_archivo) {
+  if (error || !doc?.bucket_path) {
     return { error: "Documento no encontrado" };
   }
 
@@ -118,8 +118,8 @@ export async function getDocumentoUrl(documentoId: string): Promise<{ url: strin
 
   // Generar URL firmada válida por 60 segundos
   const { data: signed, error: signErr } = await supabase.storage
-    .from("documentos")           // ← nombre de tu bucket
-    .createSignedUrl(doc.ruta_archivo, 60);
+    .from("documentos-solicitudes")           // ← nombre de tu bucket
+    .createSignedUrl(doc.bucket_path, 60);
 
   if (signErr || !signed?.signedUrl) {
     return { error: "No se pudo generar el enlace" };
