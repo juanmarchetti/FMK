@@ -474,8 +474,19 @@ export async function subirDocumento(formData: FormData) {
   }
 
   // Upload to Supabase Storage
-  const bucketPath = `documentos/${solicitudId}/${tipo}_${Date.now()}_${file.name}`;
-  const { error: storageErr } = await supabase.storage
+  // Sanitize path: remove accents, special chars, spaces → underscores
+  const sanitize = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")  // remove accents
+     .replace(/[^a-zA-Z0-9._-]/g, "_")                  // replace special chars
+     .replace(/_+/g, "_");                                // collapse underscores
+
+  const safetipo = sanitize(tipo);
+  const safeName = sanitize(file.name);
+  const bucketPath = `documentos/${solicitudId}/${safetipo}_${Date.now()}_${safeName}`;
+
+  // Use admin client for storage upload to bypass RLS policies
+  const adminStorage = createAdminClient();
+  const { error: storageErr } = await adminStorage.storage
     .from("documentos-solicitudes")
     .upload(bucketPath, file, { upsert: true });
 

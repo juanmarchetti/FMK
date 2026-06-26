@@ -89,11 +89,20 @@ export async function subirLicencia(formData: FormData) {
   }
 
   // Subir archivo a Storage
+  const sanitize = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+     .replace(/[^a-zA-Z0-9._-]/g, "_")
+     .replace(/_+/g, "_");
+
   const ext       = archivo.name.split(".").pop();
-  const filePath  = `${practicante.id}/${anio}_${Date.now()}.${ext}`;
+  const safeName  = sanitize(archivo.name);
+  const filePath  = `${practicante.id}/${anio}_${Date.now()}_${safeName}`;
   const arrayBuf  = await archivo.arrayBuffer();
 
-  const { error: storageError } = await supabase.storage
+  const { createAdminClient } = require("@/lib/supabase/server");
+  const adminStorage = createAdminClient();
+
+  const { error: storageError } = await adminStorage.storage
     .from("licencias")
     .upload(filePath, arrayBuf, { contentType: archivo.type, upsert: false });
 
@@ -156,11 +165,20 @@ export async function reemplazarLicencia(formData: FormData) {
   if (!licencia)               return { error: "Licencia no encontrada." };
   if (licencia.estado !== "rechazada") return { error: "Solo puedes reemplazar licencias rechazadas." };
 
+  const sanitize = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+     .replace(/[^a-zA-Z0-9._-]/g, "_")
+     .replace(/_+/g, "_");
+
   const ext      = archivo.name.split(".").pop();
-  const filePath = `${practicante.id}/${licencia.anio}_${Date.now()}.${ext}`;
+  const safeName = sanitize(archivo.name);
+  const filePath = `${practicante.id}/${licencia.anio}_${Date.now()}_${safeName}`;
   const arrayBuf = await archivo.arrayBuffer();
 
-  const { error: storageError } = await supabase.storage
+  const { createAdminClient } = require("@/lib/supabase/server");
+  const adminStorage = createAdminClient();
+
+  const { error: storageError } = await adminStorage.storage
     .from("licencias")
     .upload(filePath, arrayBuf, { contentType: archivo.type });
 
