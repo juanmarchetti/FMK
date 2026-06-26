@@ -41,6 +41,7 @@ export async function createUsuario(formData: FormData) {
   const email = formData.get("email") as string;
   const role = formData.get("role") as string; // 'Aspirante' | 'Director FMK'
   const password = formData.get("password") as string;
+  const fechaNacimiento = formData.get("fecha_nacimiento") as string;
 
   if (!name || !email || !role || !password) {
     return { error: "Todos los campos obligatorios deben completarse." };
@@ -88,6 +89,7 @@ export async function createUsuario(formData: FormData) {
       nombre: firstName,
       apellidos: lastName,
       grado_actual: 'Cinturón Blanco',
+      fecha_nacimiento: fechaNacimiento || null,
     });
   }
 
@@ -103,6 +105,7 @@ export async function updateUsuario(userId: string, formData: FormData) {
   const admin = createAdminClient();
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
+  const fechaNacimiento = formData.get("fecha_nacimiento") as string;
 
   if (!name || !email) {
     return { error: "Nombre y correo son obligatorios." };
@@ -115,6 +118,11 @@ export async function updateUsuario(userId: string, formData: FormData) {
   // Update Profile
   const { error: profileError } = await admin.from("perfiles_usuario").update({ nombre_visible: name }).eq("user_id", userId);
   if (profileError) return { error: profileError.message };
+
+  // Update Practicante (only if fecha_nacimiento is present in form)
+  if (typeof fechaNacimiento === "string") {
+    await admin.from("practicantes").update({ fecha_nacimiento: fechaNacimiento || null }).eq("user_id", userId);
+  }
 
   // Registrar auditoría en BD (ADM-14)
   const { logAudit } = require("../auditoria/actions");
