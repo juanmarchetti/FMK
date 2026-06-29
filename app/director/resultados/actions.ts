@@ -197,6 +197,21 @@ export async function registrarResultado(
     throw new Error("Error al registrar la calificación.");
   }
 
+  const { data: todosResultados } = await supabase
+    .from("resultados")
+    .select("bloque, calificacion")
+    .eq("solicitud_id", solicitudId);
+
+  const comunReg = todosResultados?.find(r => r.bloque === "comun");
+  const espReg   = todosResultados?.find(r => r.bloque === "especifico");
+
+  if (comunReg && espReg) {
+    await supabase
+      .from("solicitudes")
+      .update({ estado: "finalizada" })
+      .eq("id", solicitudId);
+  }
+
   await logAuditLocal(userId, email, "registrar_calificacion", "resultados", solicitudId, {
     bloque,
     componente,

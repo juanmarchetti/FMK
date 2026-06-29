@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { getMisResultados, solicitarInformeNoApto } from "@/app/aspirante/actions";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -15,8 +16,8 @@ function resolverResultado(sol: any): {
   pendiente: boolean;
 } {
   const resList     = sol.resultados ?? [];
-  const bloqueComun = resList.find((r: any) => r.bloque === "comun");
-  const bloqueEsp   = resList.find((r: any) => r.bloque === "especifico");
+  const bloqueComun = resList.filter((r: any) => r.bloque === "comun").at(-1);
+  const bloqueEsp   = resList.filter((r: any) => r.bloque === "especifico").at(-1);
 
   // PRIMERO: si hay bloques calificados, el resultado viene de los bloques
   // independientemente del estado de la solicitud
@@ -70,6 +71,59 @@ export default function ResultadoAspirantePage() {
     });
   }, []);
 
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel("resultados-aspirante")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "resultados",
+        },
+        async () => {
+          // Recargar datos cuando llegue cualquier cambio en resultados
+          startTransition(async () => {
+            const data = await getMisResultados();
+            setSolicitudes(data.solicitudes);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel("solicitudes-aspirante")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "solicitudes",
+        },
+        async () => {
+          startTransition(async () => {
+            const data = await getMisResultados();
+            setSolicitudes(data.solicitudes);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   async function handleSolicitarInforme(solicitudId: string) {
     setInfo(null);
     setError(null);
@@ -96,8 +150,15 @@ export default function ResultadoAspirantePage() {
     <div className="mx-auto max-w-4xl px-4 sm:px-6">
       <div className="border-b border-[#54585B]/20 pb-6 mb-6">
         <p className="text-xs font-bold uppercase tracking-wide text-[#7A1F2A]">Publicación Oficial</p>
-        <h1 className="mt-2 text-3xl font-bold text-[#191C1D]" style={{ fontFamily: "Montserrat, sans-serif" }}>
+        <h1 className="mt-2 text-3xl font-bold text-[#191C1D] flex items-center gap-3" style={{ fontFamily: "Montserrat, sans-serif" }}>
           Mis Resultados
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#2D6A4F]/10 px-2.5 py-1 text-xs font-medium text-[#2D6A4F] tracking-normal font-sans">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2D6A4F] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2D6A4F]"></span>
+            </span>
+            Actualizando en tiempo real
+          </span>
         </h1>
         <p className="mt-1 text-sm text-[#54585B]">Historial de resultados de examen de grado.</p>
       </div>
@@ -125,8 +186,8 @@ export default function ResultadoAspirantePage() {
           {solicitudes.map((sol: any) => {
             const conv        = sol.convocatorias;
             const res         = resolverResultado(sol);
-            const bloqueComun = sol.resultados?.find((r: any) => r.bloque === "comun");
-            const bloqueEsp   = sol.resultados?.find((r: any) => r.bloque === "especifico");
+            const bloqueComun = sol.resultados?.filter((r: any) => r.bloque === "comun").at(-1);
+            const bloqueEsp   = sol.resultados?.filter((r: any) => r.bloque === "especifico").at(-1);
             const comentarios = sol.resultados?.find((r: any) => r.comentarios)?.comentarios;
 
             // Colores según resultado

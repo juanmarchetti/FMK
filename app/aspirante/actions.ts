@@ -654,8 +654,10 @@ export async function getMisResultados() {
 
   const resultadosPorSolicitud: any[] = [];
 
+  const adminClient = createAdminClient();
+
   for (const sol of solicitudes ?? []) {
-    const { data: resultados } = await supabase
+    const { data: resultados } = await adminClient
       .from("resultados")
       .select("bloque, componente, calificacion, estado_definitivo, comentarios")
       .eq("solicitud_id", sol.id);
