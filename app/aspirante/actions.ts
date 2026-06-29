@@ -443,7 +443,7 @@ export async function enviarSolicitud(solicitudId: string, viaElegidaParam?: str
   const { data: perfil } = await admin
     .from("perfiles_usuario")
     .select("nombre_visible, email")
-    .eq("user_id", practicante.user_id || sol.practicante_id)
+    .eq("user_id", practicante.user_id)
     .maybeSingle();
 
   // Retrieve convocatoria to get the exam date
