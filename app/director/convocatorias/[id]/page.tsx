@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { changeEstadoConvocatoria, updateSedeConvocatoria } from "../actions";
@@ -30,8 +30,14 @@ export default async function ConvocatoriaDetailPage({ params }: { params: { id:
   const isBorrador = c.estado === "borrador";
   const isAbierta = c.estado === "abierta";
   
-  // En una fase posterior validaremos si hay solicitudes enviadas.
-  const hasSolicitudes = false; 
+  // Contar solicitudes activas para esta convocatoria (excluye borradores).
+  const adminClient = createAdminClient();
+  const { count: solicitudesCount } = await adminClient
+    .from("solicitudes")
+    .select("id", { count: "exact", head: true })
+    .eq("convocatoria_id", params.id)
+    .in("estado", ["enviada", "en_revision", "validada", "programada", "finalizada"]);
+  const hasSolicitudes = (solicitudesCount ?? 0) > 0;
 
   // Fetch available judges with user profiles
   const { data: dbJueces } = await supabase
